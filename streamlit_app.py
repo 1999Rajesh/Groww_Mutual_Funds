@@ -107,10 +107,51 @@ def load_metadata():
     }
 
 
+def is_opinionated_question(question: str) -> bool:
+    """Check if question is asking for advice/opinion (not factual)"""
+    opinion_keywords = [
+        'should i', 'should we', 'shall i', 'recommend', 'suggest', 
+        'advice', 'buy', 'sell', 'invest in', 'good fund', 'best fund',
+        'which fund', 'where to invest', 'portfolio', 'hold', 'exit'
+    ]
+    question_lower = question.lower()
+    return any(keyword in question_lower for keyword in opinion_keywords)
+
+
+def get_educational_link(question: str) -> str:
+    """Return relevant educational link based on question topic"""
+    question_lower = question.lower()
+    
+    if 'expense' in question_lower or 'ratio' in question_lower:
+        return 'https://www.amfiindia.com/mutual-funds/what-is-mutual-fund/understanding-mutual-funds'
+    elif 'elss' in question_lower or 'tax' in question_lower or 'lock-in' in question_lower:
+        return 'https://www.sebi.gov.in/sebiweb/other/OtherAction.do?doRecognised=yes&sid=1&ssid=13&smid=0'
+    elif 'sip' in question_lower or 'invest' in question_lower:
+        return 'https://www.amfiindia.com/mutual-funds/what-is-mutual-fund/understanding-mutual-funds'
+    elif 'exit load' in question_lower or 'charges' in question_lower:
+        return 'https://www.camsonline.com/Investors/Customer-service-briefs/Mutual-Fund-Glossary'
+    elif 'risk' in question_lower or 'riskometer' in question_lower:
+        return 'https://www.sebi.gov.in/sebiweb/other/OtherAction.do?doRecognised=yes&sid=1&ssid=13&smid=0'
+    elif 'capital gains' in question_lower or 'statement' in question_lower or 'tax' in question_lower:
+        return 'https://www.camsonline.com/Investors/Statements/Consolidated-Account-Statement'
+    else:
+        return 'https://www.amfiindia.com/mutual-funds/what-is-mutual-fund/understanding-mutual-funds'
+
+
 def process_query(question: str, pipeline: dict) -> dict:
     """Process a query through the RAG pipeline"""
     try:
         start_time = datetime.now()
+        
+        # Check for opinion/advice questions first
+        if is_opinionated_question(question):
+            educational_link = get_educational_link(question)
+            return {
+                "answer": "I can only provide factual information from official sources. For personalized investment advice, please consult a SEBI-registered investment advisor.\n\n📚 **Educational Resource:** Learn more about mutual funds basics.",
+                "citation": educational_link,
+                "confidence": 1.0,
+                "is_opinion_refusal": True
+            }
         
         # Extract query info
         query_processor = pipeline["query_processor"]
@@ -142,19 +183,18 @@ def process_query(question: str, pipeline: dict) -> dict:
         
         # Generate answer
         if chunks:
-            context_texts = [c['text'] for c in chunks[:3]]
+            # Use only top 2 chunks for concise answer
+            context_texts = [c['text'] for c in chunks[:2]]
             answer = "Based on available information:\n\n"
             for text in context_texts:
                 answer += f"• {text}\n\n"
             
-            # Get citation from first chunk
+            # Get SINGLE citation from best matching chunk
             citation = chunks[0]['metadata'].get('source_url', '')
-            alt_citation = chunks[0]['metadata'].get('alt_url', '')
             confidence = min(0.9, max(0.4, chunks[0]['similarity']))
         else:
             answer = "I couldn't find specific information about that. Please try rephrasing your question or ask about HDFC mutual funds."
             citation = ""
-            alt_citation = ""
             confidence = 0.3
         
         processing_time = (datetime.now() - start_time).total_seconds() * 1000
@@ -162,11 +202,11 @@ def process_query(question: str, pipeline: dict) -> dict:
         return {
             "answer": answer,
             "citation": citation,
-            "alt_citation": alt_citation,
             "confidence": confidence,
             "chunks_retrieved": len(chunks),
             "processing_time_ms": round(processing_time, 2),
-            "query_analysis": extracted
+            "query_analysis": extracted,
+            "is_opinion_refusal": False
         }
         
     except Exception as e:
@@ -174,7 +214,8 @@ def process_query(question: str, pipeline: dict) -> dict:
             "answer": f"Sorry, an error occurred: {str(e)}",
             "citation": "",
             "confidence": 0,
-            "error": str(e)
+            "error": str(e),
+            "is_opinion_refusal": False
         }
 
 
@@ -265,8 +306,8 @@ def main():
                 "role": "assistant",
                 "content": response["answer"],
                 "citation": response.get("citation", ""),
-                "alt_citation": response.get("alt_citation", ""),
-                "confidence": response.get("confidence", 0)
+                "confidence": response.get("confidence", 0),
+                "is_opinion_refusal": response.get("is_opinion_refusal", False)
             })
     
     # Display chat messages
@@ -277,13 +318,12 @@ def main():
             # Show citation for assistant messages
             if message["role"] == "assistant" and message.get("citation"):
                 citation = message["citation"]
-                alt_citation = message.get("alt_citation", "")
                 confidence = message.get("confidence", 0)
+                is_opinion_refusal = message.get("is_opinion_refusal", False)
                 
                 st.markdown(f"""
                 <div class="citation-box">
-                    📚 <strong>Source:</strong> <a href="{citation}" target="_blank">{citation[:60]}...</a><br>
-                    {"🔗 <strong>Alt Source:</strong> <a href='" + alt_citation + "' target='_blank'>" + alt_citation[:50] + "...</a><br>" if alt_citation else ""}
+                    📚 <strong>Source:</strong> <a href="{citation}" target="_blank">{citation[:70]}...</a><br>
                     📊 <strong>Confidence:</strong> {confidence:.0%}
                 </div>
                 """, unsafe_allow_html=True)
@@ -307,13 +347,11 @@ def main():
                 # Show citation
                 if response.get("citation"):
                     citation = response["citation"]
-                    alt_citation = response.get("alt_citation", "")
                     confidence = response.get("confidence", 0)
                     
                     st.markdown(f"""
                     <div class="citation-box">
-                        📚 <strong>Source:</strong> <a href="{citation}" target="_blank">{citation[:60]}...</a><br>
-                        {"🔗 <strong>Alt Source:</strong> <a href='" + alt_citation + "' target='_blank'>" + alt_citation[:50] + "...</a><br>" if alt_citation else ""}
+                        📚 <strong>Source:</strong> <a href="{citation}" target="_blank">{citation[:70]}...</a><br>
                         📊 <strong>Confidence:</strong> {confidence:.0%}
                     </div>
                     """, unsafe_allow_html=True)
@@ -323,8 +361,8 @@ def main():
                     "role": "assistant",
                     "content": response["answer"],
                     "citation": response.get("citation", ""),
-                    "alt_citation": response.get("alt_citation", ""),
-                    "confidence": response.get("confidence", 0)
+                    "confidence": response.get("confidence", 0),
+                    "is_opinion_refusal": response.get("is_opinion_refusal", False)
                 })
             else:
                 st.error("RAG pipeline not initialized. Please check the system status.")

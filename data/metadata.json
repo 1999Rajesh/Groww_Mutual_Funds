@@ -1,0 +1,15 @@
+{
+  "last_updated": "2026-03-06T20:58:45.364344",
+  "total_funds": 4,
+  "data_sources": [
+    "HDFC AMC (hdfcfund.com)",
+    "Groww (groww.in)",
+    "AMFI India (amfiindia.com)",
+    "SEBI (sebi.gov.in)",
+    "CAMS (camsonline.com)",
+    "KFintech (kfintech.com)"
+  ],
+  "educational_resources": 8,
+  "scheduler_run": true,
+  "scheduler_version": "1.0.0"
+}

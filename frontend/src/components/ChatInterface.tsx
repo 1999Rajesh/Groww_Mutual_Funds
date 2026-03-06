@@ -1,0 +1,277 @@
+'use client';
+
+/**
+ * Main Chat Interface Component
+ * Real-time chat with RAG Mutual Funds bot
+ */
+import React, { useState, useRef, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { sendMessage, receiveResponse, chatError, clearChat } from '../lib/store';
+import { ApiService } from '../lib/api';
+import { Send, Bot, User, Trash2, ExternalLink, Loader2 } from 'lucide-react';
+import type { RootState, AppDispatch } from '../lib/store';
+
+export default function ChatInterface() {
+  const dispatch = useDispatch<AppDispatch>();
+  const messages = useSelector((state: RootState) => state.chat.messages);
+  const isLoading = useSelector((state: RootState) => state.chat.isLoading);
+  const [input, setInput] = useState('');
+  const [metadata, setMetadata] = useState<{ last_updated: string | null; vector_db_count: number | null } | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Fetch metadata on component mount
+  useEffect(() => {
+    const fetchMetadata = async () => {
+      try {
+        const meta = await ApiService.getMetadata();
+        setMetadata({
+          last_updated: meta.last_updated,
+          vector_db_count: meta.vector_db_count
+        });
+      } catch (error) {
+        console.error('Failed to fetch metadata:', error);
+      }
+    };
+    
+    fetchMetadata();
+  }, []);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!input.trim() || isLoading) return;
+
+    const question = input.trim();
+    setInput('');
+    dispatch(sendMessage(question));
+
+    try {
+      const response = await ApiService.submitQuery(question, 5, true);
+      
+      dispatch(receiveResponse({
+        answer: response.answer,
+        citation: response.citation,
+        confidence: response.confidence,
+        chunks_retrieved: response.chunks_retrieved,
+      }));
+    } catch (error: any) {
+      dispatch(chatError(error.message || 'Failed to get response'));
+    }
+  };
+
+  const handleClearChat = () => {
+    if (confirm('Are you sure you want to clear the conversation?')) {
+      dispatch(clearChat());
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-gradient-to-b from-slate-900 to-slate-800">
+      {/* Header */}
+      <header className="bg-slate-800/50 backdrop-blur-sm border-b border-slate-700">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bot className="w-6 h-6 text-blue-400" />
+            <h1 className="text-lg font-semibold text-white">Mutual Fund Assistant</h1>
+          </div>
+          <div className="flex items-center gap-4">
+            {metadata?.last_updated && (
+              <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400 bg-slate-900/50 px-3 py-1.5 rounded-full border border-slate-700">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>Data updated: {new Date(metadata.last_updated).toLocaleDateString()}</span>
+              </div>
+            )}
+            {metadata?.vector_db_count !== undefined && metadata.vector_db_count !== null && (
+              <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400 bg-slate-900/50 px-3 py-1.5 rounded-full border border-slate-700">
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span>{metadata.vector_db_count} documents</span>
+              </div>
+            )}
+            <button
+              onClick={handleClearChat}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-300 hover:text-red-400 transition-colors"
+              title="Clear conversation"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Clear
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Messages Area */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-4 py-8">
+          {messages.length === 0 ? (
+            <div className="text-center py-12">
+              <Bot className="w-12 h-12 text-blue-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-white mb-6">
+                Welcome to your Mutual Fund Assistant
+              </h2>
+              
+              <div className="space-y-3 max-w-md mx-auto mb-6">
+                <button
+                  onClick={() => setInput("What's the expense ratio of HDFC ELSS?")}
+                  className="w-full p-3 text-left bg-slate-800/50 border border-slate-700 rounded-lg hover:bg-slate-700/50 hover:border-blue-500 transition-all group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                    </div>
+                    <span className="text-sm text-slate-200">What's the expense ratio of HDFC ELSS?</span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setInput("Show SIP options for small cap funds")}
+                  className="w-full p-3 text-left bg-slate-800/50 border border-slate-700 rounded-lg hover:bg-slate-700/50 hover:border-yellow-500 transition-all group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-lg text-yellow-400">$</span>
+                    </div>
+                    <span className="text-sm text-slate-200">Show SIP options for small cap funds</span>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setInput("Is there any lock-in period?")}
+                  className="w-full p-3 text-left bg-slate-800/50 border border-slate-700 rounded-lg hover:bg-slate-700/50 hover:border-cyan-500 transition-all group"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                    <span className="text-sm text-slate-200">Is there any lock-in period?</span>
+                  </div>
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-400 mt-6">
+                Facts-only. No investment advice.
+              </p>
+            </div>
+          ) : (
+            messages.map((message, index) => (
+              <div
+                key={index}
+                className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                {message.role === 'assistant' && (
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <Bot className="w-5 h-5 text-blue-600" />
+                  </div>
+                )}
+                
+                <div
+                  className={`max-w-[85%] rounded-xl px-3 py-2.5 ${
+                    message.role === 'user'
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-slate-800 border border-slate-700 text-slate-100'
+                  }`}
+                >
+                  {message.role === 'assistant' && message.citation ? (
+                    <>
+                      {/* Answer Section */}
+                      <div className="mb-3 pb-3 border-b border-slate-600">
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+                      </div>
+                      
+                      {/* Source Information */}
+                      <div className="bg-slate-900/60 rounded-lg p-2.5 border border-slate-700">
+                        <div className="flex items-start gap-2">
+                          <svg className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                          </svg>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-blue-400 mb-1">Source Document</p>
+                            <a
+                              href={message.citation}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-slate-300 hover:text-blue-400 break-all transition-colors flex items-center gap-1"
+                            >
+                              {message.citation}
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
+                  )}
+                </div>
+
+                {message.role === 'user' && (
+                  <div className="w-7 h-7 rounded-full bg-slate-600 flex items-center justify-center flex-shrink-0">
+                    <User className="w-4 h-4 text-slate-300" />
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+
+          {isLoading && (
+            <div className="flex gap-3 justify-start">
+              <div className="w-7 h-7 rounded-full bg-blue-500/20 flex items-center justify-center">
+                <Bot className="w-4 h-4 text-blue-400" />
+              </div>
+              <div className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2.5">
+                <div className="flex items-center gap-2 text-slate-400 text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Processing...</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+      </main>
+
+      {/* Input Area */}
+      <footer className="bg-slate-800/50 backdrop-blur-sm border-t border-slate-700">
+        <form onSubmit={handleSubmit} className="max-w-3xl mx-auto px-4 py-3">
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask about mutual funds..."
+              className="flex-1 px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-slate-100 placeholder-slate-500 text-sm"
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+            >
+              <Send className="w-4 h-4" />
+              <span className="hidden sm:inline">Send</span>
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-slate-500 text-center">
+            Facts-only information. Not investment advice.
+          </p>
+        </form>
+      </footer>
+    </div>
+  );
+}

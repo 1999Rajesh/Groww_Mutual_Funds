@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HDFC Mutual Funds FAQ Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .disclaimer {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px 20px;
+            margin: 20px;
+            border-radius: 5px;
+        }
+
+        .disclaimer strong {
+            color: #856404;
+        }
+
+        .disclaimer p {
+            color: #856404;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+
+        .chat-container {
+            padding: 30px;
+        }
+
+        .example-questions {
+            margin-bottom: 30px;
+        }
+
+        .example-questions h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        .example-question {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid #e9ecef;
+        }
+
+        .example-question:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+
+        .input-area {
+            margin-bottom: 30px;
+        }
+
+        .input-area input {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-area input:focus {
+            border-color: #667eea;
+        }
+
+        .response-area {
+            display: none;
+        }
+
+        .response-area.active {
+            display: block;
+        }
+
+        .response-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .response-card h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .response-card .answer {
+            color: #333;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .response-card .citation {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .response-card .citation a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .response-card .citation a:hover {
+            text-decoration: underline;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            display: none;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 12px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .chat-container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💼 HDFC Mutual Funds FAQ Assistant</h1>
+            <p>Your intelligent FAQ assistant for mutual fund information</p>
+        </div>
+
+        <div class="disclaimer">
+            <strong>⚠️ Facts-only. No investment advice.</strong>
+            <p>I provide factual information only. For investment advice, please consult a SEBI-registered financial advisor.</p>
+        </div>
+
+        <div class="chat-container">
+            <div class="example-questions">
+                <h3>📋 Example Questions:</h3>
+                <div class="example-question" onclick="askQuestion('What is the expense ratio of HDFC ELSS Tax Saver Fund?')">
+                    What is the expense ratio of HDFC ELSS Tax Saver Fund?
+                </div>
+                <div class="example-question" onclick="askQuestion('What is the minimum SIP for HDFC Large Cap Fund?')">
+                    What is the minimum SIP for HDFC Large Cap Fund?
+                </div>
+                <div class="example-question" onclick="askQuestion('What is the lock-in period for ELSS funds?')">
+                    What is the lock-in period for ELSS funds?
+                </div>
+                <div class="example-question" onclick="askQuestion('Exit load for HDFC Small Cap Fund?')">
+                    Exit load for HDFC Small Cap Fund?
+                </div>
+                <div class="example-question" onclick="askQuestion('What is the risk level of HDFC Balanced Advantage Fund?')">
+                    What is the risk level of HDFC Balanced Advantage Fund?
+                </div>
+            </div>
+
+            <div class="input-area">
+                <input 
+                    type="text" 
+                    id="questionInput" 
+                    placeholder="Type your question here..."
+                    onkeypress="handleKeyPress(event)"
+                >
+            </div>
+
+            <div class="loading" id="loadingArea">
+                <p>🤔 Thinking...</p>
+            </div>
+
+            <div class="response-area" id="responseArea">
+                <div class="response-card">
+                    <h4>💡 Answer:</h4>
+                    <p class="answer" id="answerText"></p>
+                    <div class="citation">
+                        📚 Source: <a href="#" target="_blank" id="citationLink"></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Data sourced from INDMoney | For informational purposes only</p>
+        </div>
+    </div>
+
+    <script>
+        // Simulated backend responses (in production, this would call your API)
+        const knowledgeBase = {};
+
+        async function askQuestion(question) {
+            const input = document.getElementById('questionInput');
+            const loadingArea = document.getElementById('loadingArea');
+            const responseArea = document.getElementById('responseArea');
+            const answerText = document.getElementById('answerText');
+            const citationLink = document.getElementById('citationLink');
+
+            // Set question in input if clicked from examples
+            if (question) {
+                input.value = question;
+            }
+
+            const query = input.value.trim();
+            if (!query) return;
+
+            // Show loading, hide response
+            loadingArea.classList.add('active');
+            responseArea.classList.remove('active');
+
+            // Simulate API call (replace with actual API call in production)
+            setTimeout(() => {
+                const response = getSimulatedResponse(query);
+                
+                answerText.textContent = response.answer;
+                citationLink.href = response.citation;
+                citationLink.textContent = response.citation;
+
+                loadingArea.classList.remove('active');
+                responseArea.classList.add('active');
+
+                input.value = '';
+            }, 800);
+        }
+
+        function getSimulatedResponse(query) {
+            // This should be replaced with actual API call to your backend
+            const queryLower = query.toLowerCase();
+
+            // Check for opinion questions
+            if (queryLower.includes('should i') || queryLower.includes('buy') || 
+                queryLower.includes('sell') || queryLower.includes('invest')) {
+                return {
+                    answer: "I can only provide factual information about mutual funds. I cannot provide investment advice or recommendations. For personalized investment advice, please consult a SEBI-registered financial advisor.",
+                    citation: "https://www.sebi.gov.in/investor-resources.html"
+                };
+            }
+
+            // Simulated responses based on keywords
+            if (queryLower.includes('expense ratio')) {
+                return {
+                    answer: "The expense ratio varies by scheme. For example, HDFC ELSS Tax Saver Fund has an expense ratio of approximately 0.68%. Please check the specific scheme page for exact details.",
+                    citation: "https://www.indmoney.com/mutual-funds"
+                };
+            }
+
+            if (queryLower.includes('sip') && queryLower.includes('minimum')) {
+                return {
+                    answer: "Most HDFC schemes have a minimum SIP amount of ₹500. Some schemes may have higher minimums. Please check the specific scheme page for exact details.",
+                    citation: "https://www.indmoney.com/mutual-funds"
+                };
+            }
+
+            if (queryLower.includes('lock-in') || queryLower.includes('elss')) {
+                return {
+                    answer: "ELSS (Equity Linked Savings Scheme) funds have a mandatory lock-in period of 3 years from the date of investment. This is the shortest lock-in among tax-saving instruments under Section 80C.",
+                    citation: "https://www.indmoney.com/mutual-funds/hdfc-elss-taxsaver-direct-plan-growth-option-2685"
+                };
+            }
+
+            if (queryLower.includes('exit load')) {
+                return {
+                    answer: "Exit loads vary by scheme and holding period. Typically, equity funds charge 1% if redeemed within 1 year. Please check the specific scheme information document for exact exit load details.",
+                    citation: "https://www.indmoney.com/mutual-funds"
+                };
+            }
+
+            if (queryLower.includes('risk')) {
+                return {
+                    answer: "Risk levels vary by scheme type. Equity funds are generally categorized as 'Very High' risk, hybrid funds as 'High' to 'Moderate', and debt funds as 'Low' to 'Moderate'. Please check the specific scheme's Riskometer for exact risk level.",
+                    citation: "https://www.indmoney.com/mutual-funds"
+                };
+            }
+
+            // Default response
+            return {
+                answer: "I don't have specific information about that query. Please visit the INDMoney website or check the scheme's Information Document for detailed information.",
+                citation: "https://www.indmoney.com/mutual-funds"
+            };
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                askQuestion();
+            }
+        }
+
+        // Welcome message on load
+        window.onload = function() {
+            console.log('FAQ Assistant loaded successfully');
+        };
+    </script>
+</body>
+</html>
